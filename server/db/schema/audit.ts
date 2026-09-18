@@ -102,3 +102,27 @@ export const pushSubscriptionsRelations = relations(pushSubscriptions, ({ one })
 		references: [users.id]
 	})
 }));
+
+// ═══════════════════════════════════════════════
+// Refresh Tokens
+// ═══════════════════════════════════════════════
+
+export const refreshTokens = sqliteTable('refresh_tokens', {
+	id: text('id').primaryKey().$defaultFn(() => createId()),
+	userId: text('user_id').notNull()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	
+	tokenHash: text('token_hash').notNull().unique(),
+	
+	userAgent: text('user_agent'),
+	ipAddress: text('ip_address'),
+	
+	expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+	revokedAt: integer('revoked_at', { mode: 'timestamp' }),
+	
+	createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date())
+}, (table) => ({
+	userIdx: index('refresh_tokens_user_idx').on(table.userId),
+	tokenIdx: index('refresh_tokens_token_idx').on(table.tokenHash),
+	expiresIdx: index('refresh_tokens_expires_idx').on(table.expiresAt)
+}));

@@ -8,6 +8,13 @@
       "when": 1789764976655,
       "tag": "0000_curious_whiplash",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789768499131,
+      "tag": "0001_colossal_meteorite",
+      "breakpoints": true
     }
   ]
 }

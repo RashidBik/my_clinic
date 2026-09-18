@@ -9,24 +9,6 @@ export default fp(async (app) => {
 			expiresIn: env.JWT_ACCESS_EXPIRES
 		}
 	});
-	
-	app.decorate('authenticate', async function (request, reply) {
-		try {
-			await request.jwtVerify();
-		} catch (err) {
-			reply.status(401).send({
-				error: 'Unauthorized',
-				message: 'توکن نامعتبر است'
-			});
-		}
-	});
 }, {
 	name: 'jwt-plugin'
 });
-
-// Type Declaration
-declare module 'fastify' {
-	export interface FastifyInstance {
-		authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
-	}
-}

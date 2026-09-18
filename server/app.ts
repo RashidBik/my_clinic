@@ -8,6 +8,8 @@ import jwtPlugin from './plugins/jwt.js';
 import cookiePlugin from './plugins/cookie.js';
 
 import healthRoutes from './routes/health.js';
+import authPlugin from './plugins/auth.js';
+import authRoutes from './routes/auth.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
 	const app = Fastify({
@@ -32,10 +34,12 @@ export async function buildApp(): Promise<FastifyInstance> {
 	await app.register(cookiePlugin);
 	await app.register(jwtPlugin);
 	await app.register(dbPlugin);
+	await app.register(authPlugin); 
 
 	
 	// Routes
 	await app.register(healthRoutes, { prefix: '/api' });
+	await app.register(authRoutes, { prefix: '/api' });  
 	
 	// Error Handler
 	app.setErrorHandler((error: FastifyError, request, reply) => {
