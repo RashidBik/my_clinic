@@ -1,22 +1,24 @@
-import adapter from '@sveltejs/adapter-node';
-import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+import { sveltekit } from '@sveltejs/kit/vite';
+import tailwindcss from '@tailwindcss/vite';
+import { defineConfig } from 'vite';
 
-/** @type {import('@sveltejs/kit').Config} */
-const config = {
-	preprocess: vitePreprocess(),
-	kit: {
-		adapter: adapter({
-			out: 'build',
-			precompress: false,
-			envPrefix: '',
-		}),
-		alias: {
-			$components: 'src/lib/components',
-			$features: 'src/lib/features',
-			$server: 'src/lib/server',
-			$shared: 'src/lib/shared',
-		},
+export default defineConfig({
+	plugins: [
+		tailwindcss(),
+		sveltekit()
+	],
+	
+	server: {
+		host: '0.0.0.0',
+		port: 5173
+	},
+	
+	optimizeDeps: {
+		include: [
+			'date-fns-jalali',
+			'zod',
+			'dexie',
+			'socket.io-client'
+		]
 	}
-};
-
-export default config;
+});
