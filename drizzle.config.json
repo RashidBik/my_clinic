@@ -1,0 +1,10 @@
+{
+	"schema": "./server/db/schema/index.ts",
+	"out": "./server/db/migrations",
+	"dialect": "sqlite",
+	"dbCredentials": {
+		"url": "./data/clinic.db"
+	},
+	"verbose": true,
+	"strict": true
+}

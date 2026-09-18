@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance, type FastifyError } from 'fastify';
 import { env } from './config/env.js';
+import dbPlugin from './plugins/db.js';
 
 import corsPlugin from './plugins/cors.js';
 import loggerPlugin from './plugins/logger.js';
@@ -30,6 +31,8 @@ export async function buildApp(): Promise<FastifyInstance> {
 	await app.register(corsPlugin);
 	await app.register(cookiePlugin);
 	await app.register(jwtPlugin);
+	await app.register(dbPlugin);
+
 	
 	// Routes
 	await app.register(healthRoutes, { prefix: '/api' });
