@@ -19,7 +19,9 @@
 		"db:migrate": "tsx server/db/migrate.ts",
 		"db:studio": "drizzle-kit studio",
 		"db:push": "drizzle-kit push",
-		"db:drop": "rm -rf server/db/migrations/* data/clinic.db*"
+		"db:drop": "rm -rf server/db/migrations/* data/clinic.db*",
+		"db:seed": "tsx server/db/seed/index.ts",
+		"db:reset": "npm run db:drop && npm run db:generate && npm run db:migrate && npm run db:seed"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-node": "5.2.12",
