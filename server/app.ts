@@ -16,6 +16,7 @@ import profileRoutes from './routes/profile.js';
 import recordsRoutes from './routes/records.js';
 import templatesRoutes from './routes/templates.js';
 import inventoryRoutes from './routes/inventory.js';
+import membersRoutes from './routes/members.js';
 
 
 
@@ -76,6 +77,8 @@ export async function buildApp(): Promise<FastifyInstance> {
 	await app.register(recordsRoutes, { prefix: '/api' });
 	await app.register(templatesRoutes, { prefix: '/api' });
 	await app.register(inventoryRoutes, { prefix: '/api' });
+	await app.register(membersRoutes, { prefix: '/api' });
+
 
 
 	

@@ -66,7 +66,8 @@
 					{#if counts[f.value] !== undefined}
 						<span
 							class="ml-1 rounded-full px-1.5 text-[10px]"
-							class:bg-white/30={filter === f.value}
+							class:bg-white={filter === f.value}
+							class:bg-opacity-30={filter === f.value}
 							class:bg-gray-200={filter !== f.value}
 						>
 							{counts[f.value]}
