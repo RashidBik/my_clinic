@@ -63,6 +63,7 @@ export type TemplateFieldType =
 	| 'datetime'
 	| 'boolean'
 	| 'textarea'
+	| 'hidden'
 	| 'patient_picker'
 	| 'user_picker'
 	| 'product_picker'

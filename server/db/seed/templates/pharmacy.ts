@@ -9,7 +9,7 @@ export const PHARMACY_TEMPLATES: SeedTemplate[] = [
 		roleSlug: 'pharmacy',
 		sortOrder: 1,
 		textTemplate:
-			'برای مریض بنام {patientName} تعداد {quantity} از داروی {medicine} به مبلغ {amount} افغانی فروخته شد و پرداخت به‌صورت {paymentMethod} انجام شد.',
+			'برای مریض {patientName} تعداد {quantity} از {medicineName} به مبلغ {amount} افغانی فروخته شد.',
 		fields: [
 			{
 				key: 'patientName',
@@ -20,17 +20,29 @@ export const PHARMACY_TEMPLATES: SeedTemplate[] = [
 			},
 			{
 				key: 'medicine',
-				type: 'product_picker',
+				type: 'inventory_picker',
 				label: 'دارو',
 				required: true,
-				sortOrder: 2
+				sortOrder: 2,
+				validation: {
+					// فقط آیتم‌هایی با salePrice > 0 را نشان بده (فروشی)
+					hasSalePrice: true
+				}
+			},
+			{
+				// این فیلد خودکار پر می‌شود توسط InventoryPicker
+				key: 'medicineName',
+				type: 'hidden',
+				label: 'نام دارو',
+				required: false,
+				sortOrder: 3
 			},
 			{
 				key: 'quantity',
 				type: 'number',
 				label: 'تعداد',
 				required: true,
-				sortOrder: 3,
+				sortOrder: 4,
 				validation: { min: 1 }
 			},
 			{
@@ -38,14 +50,14 @@ export const PHARMACY_TEMPLATES: SeedTemplate[] = [
 				type: 'currency',
 				label: 'مبلغ کل (افغانی)',
 				required: true,
-				sortOrder: 4
+				sortOrder: 5
 			},
 			{
 				key: 'paymentMethod',
 				type: 'select',
 				label: 'روش پرداخت',
 				required: true,
-				sortOrder: 5,
+				sortOrder: 6,
 				options: [
 					{ value: 'cash', label: 'نقدی' },
 					{ value: 'card', label: 'کارت' },

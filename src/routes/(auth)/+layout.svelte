@@ -3,17 +3,16 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	
+	let { children } = $props();
+	
 	onMount(async () => {
+		// اگر کاربر قبلاً لاگین است، به Chat برو
 		await auth.initialize();
 		
 		if (auth.isAuthenticated) {
 			await goto('/chat');
-		} else {
-			await goto('/login');
 		}
 	});
 </script>
 
-<div class="flex min-h-screen items-center justify-center">
-	<div class="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
-</div>
+{@render children()}

@@ -1,7 +1,7 @@
-import { db } from '../client.js';
-import { sqlite } from '../client.js';
-import { eq, and } from 'drizzle-orm';
-import { createId } from '@paralleldrive/cuid2';
+import { db, sqlite } from '../client.js';
+import { eq } from 'drizzle-orm';
+import { randomBytes, scrypt as scryptCallback } from 'node:crypto';
+import { promisify } from 'node:util';
 
 import {
 	organizations,
@@ -14,7 +14,11 @@ import { templates } from '../schema/templates.js';
 import { workflows, workflowSteps } from '../schema/records.js';
 
 import { CLINIC_ROLES, CLINIC_CATEGORIES, CLINIC_WORKFLOWS } from './clinic-preset.js';
+import { seedInventory } from './inventory.js';
 import { CLINIC_TEMPLATES } from './templates/index.js';
+
+
+const scrypt = promisify(scryptCallback);
 
 // ═══════════════════════════════════════════════
 // Config
@@ -27,26 +31,44 @@ const ADMIN_PHONE = process.env.SEED_ADMIN_PHONE || '0700000000';
 const ADMIN_NAME = process.env.SEED_ADMIN_NAME || 'مدیر سیستم';
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || 'admin123';
 
+const RESET = process.argv.includes('--reset');
+
 // ═══════════════════════════════════════════════
-// Main Seed Function
+// Password Hash
+// ═══════════════════════════════════════════════
+
+async function hashPassword(password: string): Promise<string> {
+	const salt = randomBytes(16).toString('hex');
+	const derivedKey = (await scrypt(password, salt, 64)) as Buffer;
+	return `${salt}:${derivedKey.toString('hex')}`;
+}
+
+// ═══════════════════════════════════════════════
+// Main Seed
 // ═══════════════════════════════════════════════
 
 async function seed() {
 	console.log('🌱 Starting seed...');
-	
+
+	// Reset اگر --reset داده شده
+	if (RESET) {
+		console.log('🗑️  Resetting organization...');
+		await db.delete(organizations).where(eq(organizations.slug, ORG_SLUG));
+	}
+
 	// 1. Check if already seeded
 	const existingOrg = await db
 		.select()
 		.from(organizations)
 		.where(eq(organizations.slug, ORG_SLUG))
 		.limit(1);
-	
+
 	if (existingOrg.length > 0) {
 		console.log('✅ Organization already exists, skipping seed');
-		console.log(`   Org ID: ${existingOrg[0].id}`);
+		console.log(`   Org ID: ${existingOrg[0]!.id}`);
 		return;
 	}
-	
+
 	// 2. Create Organization
 	const [org] = await db
 		.insert(organizations)
@@ -58,12 +80,12 @@ async function seed() {
 			settings: {}
 		})
 		.returning();
-	
+
+	if (!org) throw new Error('Failed to create organization');
 	console.log(`📦 Created organization: ${org.name} (${org.id})`);
-	
+
 	// 3. Create Roles
-	const createdRoles = new Map<string, string>(); // slug → id
-	
+	const createdRoles = new Map<string, string>();
 	for (const role of CLINIC_ROLES) {
 		const [created] = await db
 			.insert(roles)
@@ -78,15 +100,12 @@ async function seed() {
 				sortOrder: role.sortOrder
 			})
 			.returning();
-		
-		createdRoles.set(role.slug, created.id);
+		if (created) createdRoles.set(role.slug, created.id);
 	}
-	
 	console.log(`🎭 Created ${createdRoles.size} roles`);
-	
+
 	// 4. Create Categories
 	const createdCategories = new Map<string, string>();
-	
 	for (const category of CLINIC_CATEGORIES) {
 		const [created] = await db
 			.insert(categories)
@@ -103,15 +122,12 @@ async function seed() {
 					: null
 			})
 			.returning();
-		
-		createdCategories.set(category.slug, created.id);
+		if (created) createdCategories.set(category.slug, created.id);
 	}
-	
 	console.log(`📂 Created ${createdCategories.size} categories`);
-	
+
 	// 5. Create Workflows
 	const createdWorkflows = new Map<string, string>();
-	
 	for (const workflow of CLINIC_WORKFLOWS) {
 		const [created] = await db
 			.insert(workflows)
@@ -122,16 +138,19 @@ async function seed() {
 				description: workflow.description
 			})
 			.returning();
-		
+
+		if (!created) continue;
 		createdWorkflows.set(workflow.slug, created.id);
-		
-		// Create steps
+
 		for (const step of workflow.steps) {
+			const categoryId = createdCategories.get(step.categorySlug);
+			if (!categoryId) continue;
+
 			await db.insert(workflowSteps).values({
 				workflowId: created.id,
 				stepOrder: step.stepOrder,
-				categoryId: createdCategories.get(step.categorySlug)!,
-				roleId: step.roleSlug ? createdRoles.get(step.roleSlug) : null,
+				categoryId,
+				roleId: step.roleSlug ? createdRoles.get(step.roleSlug) ?? null : null,
 				name: step.name,
 				description: step.description,
 				isTerminal: step.isTerminal ?? false,
@@ -139,32 +158,37 @@ async function seed() {
 			});
 		}
 	}
-	
 	console.log(`🔄 Created ${createdWorkflows.size} workflows`);
-	
+
 	// 6. Create Templates
+	let templateCount = 0;
 	for (const template of CLINIC_TEMPLATES) {
+		const categoryId = template.categorySlug
+			? createdCategories.get(template.categorySlug) ?? null
+			: null;
+		const roleId = template.roleSlug
+			? createdRoles.get(template.roleSlug) ?? null
+			: null;
+
 		await db.insert(templates).values({
 			organizationId: org.id,
 			name: template.name,
 			slug: template.slug,
 			description: template.description,
-			categoryId: template.categorySlug
-				? createdCategories.get(template.categorySlug)
-				: null,
-			roleId: template.roleSlug ? createdRoles.get(template.roleSlug) : null,
+			categoryId,
+			roleId,
 			textTemplate: template.textTemplate,
-			fields: template.fields,
-			actions: template.actions,
+			fields: template.fields as any,
+			actions: template.actions as any,
 			sortOrder: template.sortOrder
 		});
+		templateCount++;
 	}
-	
-	console.log(`📝 Created ${CLINIC_TEMPLATES.length} templates`);
-	
+	console.log(`📝 Created ${templateCount} templates`);
+
 	// 7. Create Admin User
 	const passwordHash = await hashPassword(ADMIN_PASSWORD);
-	
+
 	const [admin] = await db
 		.insert(users)
 		.values({
@@ -173,20 +197,25 @@ async function seed() {
 			passwordHash
 		})
 		.returning();
-	
+
+	if (!admin) throw new Error('Failed to create admin user');
 	console.log(`👤 Created admin user: ${admin.name} (${admin.phone})`);
-	
-	// 8. Add Admin as Member (Manager role)
+	await seedInventory(org.id);
+
+	// 8. Add Admin as Manager
+	const managerRoleId = createdRoles.get('manager');
+	if (!managerRoleId) throw new Error('Manager role not found');
+
 	await db.insert(members).values({
 		organizationId: org.id,
 		userId: admin.id,
-		roleId: createdRoles.get('manager')!,
+		roleId: managerRoleId,
 		isMember: true,
 		status: 'active'
 	});
-	
 	console.log(`✅ Admin added as Manager`);
-	
+
+	// Done
 	console.log('');
 	console.log('═══════════════════════════════════════');
 	console.log('🎉 Seed completed successfully!');
@@ -196,23 +225,16 @@ async function seed() {
 	console.log(`   Phone: ${ADMIN_PHONE}`);
 	console.log(`   Password: ${ADMIN_PASSWORD}`);
 	console.log('');
-	console.log('⚠️  Change these credentials in production!');
+	console.log('📊 Created:');
+	console.log(`   - 1 Organization`);
+	console.log(`   - ${createdRoles.size} Roles`);
+	console.log(`   - ${createdCategories.size} Categories`);
+	console.log(`   - ${createdWorkflows.size} Workflows`);
+	console.log(`   - ${templateCount} Templates`);
+	console.log(`   - 1 Admin User`);
 	console.log('');
-}
-
-// ═══════════════════════════════════════════════
-// Password Hashing (بدون وابستگی)
-// ═══════════════════════════════════════════════
-
-import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
-import { promisify } from 'node:util';
-
-const scrypt = promisify(scryptCallback);
-
-async function hashPassword(password: string): Promise<string> {
-	const salt = randomBytes(16).toString('hex');
-	const derivedKey = (await scrypt(password, salt, 64)) as Buffer;
-	return `${salt}:${derivedKey.toString('hex')}`;
+	console.log('⚠️  Change credentials in production!');
+	console.log('');
 }
 
 // ═══════════════════════════════════════════════
@@ -221,7 +243,6 @@ async function hashPassword(password: string): Promise<string> {
 
 seed()
 	.then(() => {
-		console.log('✅ Done');
 		sqlite.close();
 		process.exit(0);
 	})
