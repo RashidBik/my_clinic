@@ -75,7 +75,7 @@ const inventoryRoutes: FastifyPluginAsync = async (app) => {
 		}
 
 		const items = await listItems({
-			organizationId: request.user!.orgId,
+			organizationId: (request.user as { orgId: string }).orgId,
 			...query.data
 		});
 
@@ -84,7 +84,7 @@ const inventoryRoutes: FastifyPluginAsync = async (app) => {
 
 	// GET /api/inventory/items/:id
 	app.get<{ Params: { id: string } }>('/inventory/items/:id', async (request, reply) => {
-		const item = await getItem(request.params.id, request.user!.orgId);
+		const item = await getItem(request.params.id, (request.user as { orgId: string }).orgId);
 		if (!item) {
 			return reply.status(404).send({ error: 'NOT_FOUND' });
 		}
@@ -103,8 +103,8 @@ const inventoryRoutes: FastifyPluginAsync = async (app) => {
 
 		try {
 			const id = await createItem({
-				organizationId: request.user!.orgId,
-				userId: request.user!.sub,
+				organizationId: (request.user as { orgId: string }).orgId,
+				userId: (request.user as { sub: string }).sub,
 				...body.data,
 				expiryDate: body.data.expiryDate ? new Date(body.data.expiryDate) : undefined
 			});
@@ -129,7 +129,7 @@ const inventoryRoutes: FastifyPluginAsync = async (app) => {
 		}
 
 		try {
-			await updateItem(request.params.id, request.user!.orgId, {
+			await updateItem(request.params.id, (request.user as { orgId: string }).orgId, {
 				...body.data,
 				expiryDate: body.data.expiryDate !== undefined
 					? body.data.expiryDate ? new Date(body.data.expiryDate) : null
@@ -156,8 +156,8 @@ const inventoryRoutes: FastifyPluginAsync = async (app) => {
 
 		try {
 			await adjustStock({
-				organizationId: request.user!.orgId,
-				userId: request.user!.sub,
+				organizationId: (request.user as { orgId: string }).orgId,
+				userId: (request.user as { sub: string }).sub,
 				...body.data
 			});
 			return { success: true };
@@ -185,7 +185,7 @@ const inventoryRoutes: FastifyPluginAsync = async (app) => {
 		}
 
 		const transactions = await listTransactions({
-			organizationId: request.user!.orgId,
+			organizationId: (request.user as { orgId: string }).orgId,
 			...query.data
 		});
 
@@ -194,19 +194,19 @@ const inventoryRoutes: FastifyPluginAsync = async (app) => {
 
 	// GET /api/inventory/alerts/low-stock
 	app.get('/inventory/alerts/low-stock', async (request) => {
-		const items = await getLowStockItems(request.user!.orgId);
+		const items = await getLowStockItems((request.user as { orgId: string }).orgId);
 		return { items };
 	});
 
 	// GET /api/inventory/alerts/expiring
 	app.get('/inventory/alerts/expiring', async (request) => {
-		const items = await getExpiringSoonItems(request.user!.orgId);
+		const items = await getExpiringSoonItems((request.user as { orgId: string }).orgId);
 		return { items };
 	});
 
 	// GET /api/inventory/stats
 	app.get('/inventory/stats', async (request) => {
-		return getInventoryStats(request.user!.orgId);
+		return getInventoryStats((request.user as { orgId: string }).orgId);
 	});
 };
 

@@ -9,6 +9,12 @@ export interface ChatMessage {
 	recordId: string | null;
 	templateId: string | null;
 	templateData: Record<string, unknown> | null;
+	// ⭐ جدید
+	nextRoleId: string | null;
+	nextRoleName: string | null;
+	nextRoleSlug: string | null;
+	recordStatus: 'waiting' | 'in_progress' | 'completed' | 'cancelled' | null;
+	referenceCode: string | null;
 	editedAt: string | null;
 	createdAt: string;
 

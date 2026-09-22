@@ -4,6 +4,7 @@ import { createId } from '@paralleldrive/cuid2';
 import { organizations, users } from './core';
 import { records } from './records';
 import { templates } from './templates';
+import { roles } from './core';  // ← اضافه
 
 // ═══════════════════════════════════════════════
 // Chat Messages
@@ -25,7 +26,11 @@ export const chatMessages = sqliteTable('chat_messages', {
 	templateId: text('template_id')
 		.references(() => templates.id, { onDelete: 'set null' }),
 	templateData: text('template_data', { mode: 'json' }).$type<Record<string, unknown>>(),
-	
+		// ⭐ فیلدهای جدید
+	nextRoleId: text('next_role_id')
+		.references(() => roles.id, { onDelete: 'set null' }),
+	recordStatus: text('record_status'), // waiting, in_progress, completed, cancelled
+	referenceCode: text('reference_code'),
 	// برای نمایش سریع
 	visibleToRoles: text('visible_to_roles', { mode: 'json' }).$type<string[]>(),
 	
@@ -53,5 +58,9 @@ export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
 	template: one(templates, {
 		fields: [chatMessages.templateId],
 		references: [templates.id]
+	}),
+		nextRole: one(roles, {   // ← اضافه
+		fields: [chatMessages.nextRoleId],
+		references: [roles.id]
 	})
 }));

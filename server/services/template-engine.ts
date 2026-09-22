@@ -297,6 +297,11 @@ function executeActionsSync(input: ExecuteActionsInput): ExecuteTemplateResult {
 	let recordStepId: string | null = null;
 	let paymentId: string | null = null;
 	let referenceCode = '';
+	let nextRoleId: string | null = null;
+	let recordStatus: string | null = null;
+	let referenceCodeForMessage: string | null = null;
+
+	
 	const context: Record<string, unknown> = {};
 
 	// اجرای Actions
@@ -321,17 +326,32 @@ function executeActionsSync(input: ExecuteActionsInput): ExecuteTemplateResult {
 		Object.assign(context, result.context);
 	}
 
-		if (recordId) {
-		db.update(records)
-			.set({
-				metadata: data, // ← کل داده را ذخیره کن
-				updatedAt: new Date()
-			})
-			.where(eq(records.id, recordId))
-			.run();
-		}
+		// if (recordId) {
+		// db.update(records)
+		// 	.set({
+		// 		metadata: data, // ← کل داده را ذخیره کن
+		// 		updatedAt: new Date()
+		// 	})
+		// 	.where(eq(records.id, recordId))
+		// 	.run();
+		// }
 
-	// ساخت Chat Message
+			if (recordId) {
+		const [freshRecord] = db
+			.select()
+			.from(records)
+			.where(eq(records.id, recordId))
+			.limit(1)
+			.all();
+
+		if (freshRecord) {
+			nextRoleId = freshRecord.assignedToRoleId;
+			recordStatus = freshRecord.status;
+			referenceCodeForMessage = freshRecord.referenceCode;
+		}
+	}
+
+		// ساخت Chat Message
 	const chatMessageId = createChatMessage({
 		organizationId,
 		userId,
@@ -339,7 +359,10 @@ function executeActionsSync(input: ExecuteActionsInput): ExecuteTemplateResult {
 		messageType: 'operational',
 		recordId,
 		templateId: template.id,
-		templateData: data
+		templateData: data,
+		nextRoleId,
+		recordStatus,
+		referenceCode: referenceCodeForMessage
 	});
 
 	// Audit Log
@@ -749,6 +772,10 @@ interface CreateChatMessageInput {
 	recordId?: string | null;
 	templateId?: string | null;
 	templateData?: Record<string, unknown>;
+	// ⭐ جدید
+	nextRoleId?: string | null;
+	recordStatus?: string | null;
+	referenceCode?: string | null;
 }
 
 function createChatMessage(input: CreateChatMessageInput): string {
@@ -765,6 +792,10 @@ function createChatMessage(input: CreateChatMessageInput): string {
 			recordId: input.recordId ?? null,
 			templateId: input.templateId ?? null,
 			templateData: input.templateData ?? null,
+			// ⭐ جدید
+			nextRoleId: input.nextRoleId ?? null,
+			recordStatus: input.recordStatus ?? null,
+			referenceCode: input.referenceCode ?? null,
 			createdAt: now
 		})
 		.run();
@@ -997,14 +1028,17 @@ function executeContinueActionsSync(
 		.run();
 
 	// Create Chat Message
-	const chatMessageId = createChatMessage({
+		const chatMessageId = createChatMessage({
 		organizationId,
 		userId,
 		content: renderedContent,
 		messageType: 'operational',
 		recordId: record.id,
 		templateId: template.id,
-		templateData: data
+		templateData: data,
+		nextRoleId: newStatus === 'completed' ? null : newAssignedRoleId,
+		recordStatus: newStatus,
+		referenceCode: record.referenceCode
 	});
 
 	// Audit Log
@@ -1018,6 +1052,17 @@ function executeContinueActionsSync(
 		newValue: { status: newStatus, metadata: newMetadata }
 	});
 
+		if (newStatus === 'completed') {
+			createChatMessage({
+				organizationId,
+				userId, // یا null، اما ما userId می‌گذاریم
+				content: `✅ پرونده ${record.referenceCode} تکمیل شد`,
+				messageType: 'system',
+				recordId: record.id,
+				recordStatus: 'completed',
+				referenceCode: record.referenceCode
+			});
+		}
 	// Result
 	const result: ExecuteTemplateResult = {
 		recordId: record.id,

@@ -115,7 +115,11 @@
 		<div
 			class="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
 			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => {
+				if (e.key === 'Escape') isOpen = false;
+			}}
 			role="dialog"
+			tabindex="-1"
 		>
 			<!-- Header -->
 			<div class="sticky top-0 z-10 border-b bg-white p-3">
@@ -134,7 +138,6 @@
 					bind:value={search}
 					placeholder="جستجو..."
 					class="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-					autofocus
 				/>
 			</div>
 

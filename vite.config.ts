@@ -1,5 +1,6 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
+import { readFileSync } from 'fs';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
@@ -10,7 +11,11 @@ export default defineConfig({
 	
 	server: {
 		host: '0.0.0.0',
-		port: 5173
+		port: 5173,
+		https: {
+			key: readFileSync('./certs/key.pem'),
+			cert: readFileSync('./certs/cert.pem')
+		},
 	},
 	
 	optimizeDeps: {

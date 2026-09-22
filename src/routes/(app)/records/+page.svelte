@@ -42,6 +42,7 @@
 		<div class="flex items-center gap-3 px-4 py-3">
 			<a
 				href="/chat"
+				aria-label="بازگشت به گفتگو"
 				class="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100"
 			>
 				<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

@@ -44,12 +44,15 @@
 <div
 	class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center"
 	onclick={onClose}
+	onkeydown={(e) => e.key === 'Escape' && onClose()}
 	role="presentation"
 >
 	<div
 		class="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl"
 		onclick={(e) => e.stopPropagation()}
+		onkeydown={(e) => e.stopPropagation()}
 		role="dialog"
+		tabindex="-1"
 	>
 		<h2 class="text-lg font-bold text-gray-900">ویرایش کارمند</h2>
 

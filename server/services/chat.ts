@@ -1,7 +1,9 @@
 import { db } from '../db/client.js';
 import { chatMessages } from '../db/schema/chat.js';
 import { users } from '../db/schema/core.js';
-import { eq, and, lt, desc, sql } from 'drizzle-orm';
+import { eq, and, lt, desc, sql, inArray } from 'drizzle-orm';
+import { roles } from '../db/schema/core.js';
+
 
 // ═══════════════════════════════════════════════
 // Types
@@ -18,6 +20,12 @@ export interface ChatMessage {
 	recordId: string | null;
 	templateId: string | null;
 	templateData: Record<string, unknown> | null;
+		// ⭐ جدید
+	nextRoleId: string | null;
+	nextRoleName: string | null;
+	nextRoleSlug: string | null;
+	recordStatus: string | null;
+	referenceCode: string | null;
 	editedAt: Date | null;
 	createdAt: Date;
 }
@@ -69,7 +77,21 @@ export async function createMessage(input: CreateMessageInput): Promise<ChatMess
 		.from(users)
 		.where(eq(users.id, created.senderId))
 		.limit(1);
-	
+		// ⭐ Join nextRole
+		let nextRoleName: string | null = null;
+		let nextRoleSlug: string | null = null;
+
+		if (created.nextRoleId) {
+			const [role] = await db
+				.select({ name: roles.name, slug: roles.slug })
+				.from(roles)
+				.where(eq(roles.id, created.nextRoleId))
+				.limit(1);
+
+			nextRoleName = role?.name ?? null;
+			nextRoleSlug = role?.slug ?? null;
+		}
+
 	return {
 		id: created.id,
 		organizationId: created.organizationId,
@@ -81,6 +103,11 @@ export async function createMessage(input: CreateMessageInput): Promise<ChatMess
 		recordId: created.recordId,
 		templateId: created.templateId,
 		templateData: created.templateData as Record<string, unknown> | null,
+		nextRoleId: created.nextRoleId,
+		nextRoleName,
+		nextRoleSlug,
+		recordStatus: created.recordStatus,
+		referenceCode: created.referenceCode,
 		editedAt: created.editedAt,
 		createdAt: created.createdAt
 	};
@@ -114,24 +141,54 @@ export async function listMessages(options: ListMessagesOptions): Promise<{
 		.where(and(...conditions))
 		.orderBy(desc(chatMessages.createdAt))
 		.limit(limit + 1); // +1 برای تشخیص hasMore
+
+			// ⭐ Load همه Roleهای مربوطه در یک Query
+	const roleIds = rows
+		.map((r) => r.message.nextRoleId)
+		.filter((id): id is string => id !== null);
+
+	const roleMap = new Map<string, { name: string; slug: string }>();
+	if (roleIds.length > 0) {
+		const roleRows = await db
+			.select({ id: roles.id, name: roles.name, slug: roles.slug })
+			.from(roles)
+			.where(inArray(roles.id, roleIds));
+
+		for (const r of roleRows) {
+			roleMap.set(r.id, { name: r.name, slug: r.slug });
+		}
+	}
 	
 	const hasMore = rows.length > limit;
 	const items = rows.slice(0, limit);
 	
-	const messages: ChatMessage[] = items.map((row) => ({
-		id: row.message.id,
-		organizationId: row.message.organizationId,
-		senderId: row.message.senderId,
-		senderName: row.senderName,
-		senderAvatar: row.senderAvatar,
-		messageType: row.message.messageType as ChatMessage['messageType'],
-		content: row.message.content,
-		recordId: row.message.recordId,
-		templateId: row.message.templateId,
-		templateData: row.message.templateData as Record<string, unknown> | null,
-		editedAt: row.message.editedAt,
-		createdAt: row.message.createdAt
-	}));
+	const messages: ChatMessage[] = items.map((row) => {
+		const nextRole = row.message.nextRoleId
+			? roleMap.get(row.message.nextRoleId)
+			: null;
+
+		return {
+
+			id: row.message.id,
+			organizationId: row.message.organizationId,
+			senderId: row.message.senderId,
+			senderName: row.senderName,
+			senderAvatar: row.senderAvatar,
+			messageType: row.message.messageType as ChatMessage['messageType'],
+			content: row.message.content,
+			recordId: row.message.recordId,
+			templateId: row.message.templateId,
+			templateData: row.message.templateData as Record<string, unknown> | null,
+			editedAt: row.message.editedAt,
+			createdAt: row.message.createdAt,
+			// ... قبلی
+			nextRoleId: row.message.nextRoleId,
+			nextRoleName: nextRole?.name ?? null,
+			nextRoleSlug: nextRole?.slug ?? null,
+			recordStatus: row.message.recordStatus,
+			referenceCode: row.message.referenceCode
+		};
+	});
 	
 	return { messages, hasMore };
 }
@@ -200,6 +257,11 @@ export async function editMessage(
 		recordId: updated.recordId,
 		templateId: updated.templateId,
 		templateData: updated.templateData as Record<string, unknown> | null,
+		nextRoleId: updated.nextRoleId,
+		nextRoleName: null,
+		nextRoleSlug: null,
+		recordStatus: updated.recordStatus,
+		referenceCode: updated.referenceCode,
 		editedAt: updated.editedAt,
 		createdAt: updated.createdAt
 	};
@@ -249,6 +311,11 @@ export async function getChatMessage(messageId: string): Promise<ChatMessage | n
 		recordId: row.message.recordId,
 		templateId: row.message.templateId,
 		templateData: row.message.templateData as Record<string, unknown> | null,
+		nextRoleId: row.message.nextRoleId,
+		nextRoleName: null,
+		nextRoleSlug: null,
+		recordStatus: row.message.recordStatus,
+		referenceCode: row.message.referenceCode,
 		editedAt: row.message.editedAt,
 		createdAt: row.message.createdAt
 	};

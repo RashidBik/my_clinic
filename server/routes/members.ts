@@ -41,7 +41,7 @@ const membersRoutes: FastifyPluginAsync = async (app) => {
 
 	// فقط Manager
 	app.addHook('preHandler', async (request, reply) => {
-		if (request.user!.baseRole !== 'manager') {
+		if ((request.user as { baseRole: string }).baseRole !== 'manager') {
 			return reply.status(403).send({
 				error: 'FORBIDDEN',
 				message: 'فقط مدیر می‌تواند کارمندان را مدیریت کند'
@@ -57,7 +57,7 @@ const membersRoutes: FastifyPluginAsync = async (app) => {
 		}
 
 		const members = await listMembers({
-			organizationId: request.user!.orgId,
+			organizationId: (request.user as { orgId: string }).orgId,
 			...query.data
 		});
 
@@ -76,7 +76,7 @@ const membersRoutes: FastifyPluginAsync = async (app) => {
 
 		try {
 			const id = await createMember({
-				organizationId: request.user!.orgId,
+				organizationId: (request.user as { orgId: string }).orgId,
 				...body.data
 			});
 			return reply.status(201).send({ id });
@@ -99,7 +99,11 @@ const membersRoutes: FastifyPluginAsync = async (app) => {
 		}
 
 		try {
-			await updateMember(request.params.id, request.user!.orgId, body.data);
+			await updateMember(
+				request.params.id,
+				(request.user as { orgId: string }).orgId,
+				body.data
+			);
 			return { success: true };
 		} catch (error) {
 			if (error instanceof MemberError) {
@@ -117,8 +121,8 @@ const membersRoutes: FastifyPluginAsync = async (app) => {
 		try {
 			await deleteMember(
 				request.params.id,
-				request.user!.orgId,
-				request.user!.sub
+				(request.user as { orgId: string }).orgId,
+				(request.user as { sub: string }).sub
 			);
 			return { success: true };
 		} catch (error) {
@@ -134,7 +138,8 @@ const membersRoutes: FastifyPluginAsync = async (app) => {
 
 	// GET /api/members/roles
 	app.get('/members/roles', async (request) => {
-		const roles = await listRoles(request.user!.orgId);
+		const user = request.user as { orgId: string };
+		const roles = await listRoles(user.orgId);
 		return { roles };
 	});
 };

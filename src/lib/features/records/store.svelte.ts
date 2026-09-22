@@ -1,6 +1,8 @@
 import { api } from '$lib/api/client';
 import type { RecordListItem, RecordDetail } from './types';
 import type { Template } from '$lib/features/templates/types';
+import { generateUUID } from '$lib/utils/uuid';
+
 
 interface RecordsState {
 	items: RecordListItem[];
@@ -51,7 +53,7 @@ export const records = {
 	},
 
 	async continueRecord(recordId: string, templateId: string, data: Record<string, unknown>) {
-		const clientOperationId = crypto.randomUUID();
+		const clientOperationId = generateUUID();
 		const result = await api.post(`/records/${recordId}/continue`, {
 			templateId,
 			data,

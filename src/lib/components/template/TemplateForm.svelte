@@ -3,6 +3,7 @@
 	import { api } from '$lib/api/client';
 	import InventoryPicker from './InventoryPicker.svelte';
 	import type { InventoryItem } from '$lib/features/inventory/types';
+	import { generateUUID } from '$lib/utils/uuid';
 
 	let {
 		template,
@@ -106,7 +107,7 @@
 		}
 
 		// hidden — Skip validation, اما مقدار را بفرست
-		if (field.type === 'hidden') {
+		if ((field.type as string) === 'hidden') {
 			if (value !== undefined && value !== null && value !== '') {
 				clean[field.key] = value;
 			}
@@ -140,7 +141,7 @@
 
 		isSubmitting = true;
 		try {
-			const clientOperationId = crypto.randomUUID();
+			const clientOperationId = generateUUID();
 			const endpoint = recordId
 				? `/records/${recordId}/continue`
 				: '/records/execute';

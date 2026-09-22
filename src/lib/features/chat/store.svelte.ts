@@ -3,6 +3,7 @@ import { auth } from '$lib/stores/auth.svelte';
 import { api } from '$lib/api/client';
 import type { ChatMessage, TypingUser } from './types';
 import { config } from '$lib/config';
+import { generateUUID } from '$lib/utils/uuid';
 
 // ═══════════════════════════════════════════════
 // State
@@ -103,7 +104,7 @@ export const chat = {
 		const trimmed = content.trim();
 		if (!trimmed) return;
 
-		const clientOperationId = crypto.randomUUID();
+		const clientOperationId = generateUUID();
 
 		// ۱. Optimistic Message
 		const optimistic: ChatMessage = {

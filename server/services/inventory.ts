@@ -186,8 +186,8 @@ export async function getItem(
 		)
 		.limit(1);
 
-	if (rows.length === 0) return null;
-	const row = rows[0]!;
+	if (items.length === 0) return null;
+	const row = items[0]!;
 
 	return {
 		id: row.item.id,
