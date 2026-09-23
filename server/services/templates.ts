@@ -64,15 +64,17 @@ export async function getAvailableTemplatesForRecord(options: {
 	// اگر Record به Role خاصی Assign شده → فقط Templateهای آن Role
 	const targetRoleId = record.assignedToRoleId ?? options.roleId;
 
-	return db
-		.select()
-		.from(templates)
-		.where(
-			and(
-				eq(templates.organizationId, options.organizationId),
-				eq(templates.roleId, targetRoleId),
-				eq(templates.isActive, true)
+	if (record.assignedToRoleId) {
+		return db
+			.select()
+			.from(templates)
+			.where(
+				and(
+					eq(templates.organizationId, options.organizationId),
+					eq(templates.roleId, record.assignedToRoleId),
+					eq(templates.isActive, true)
+				)
 			)
-		)
-		.orderBy(templates.sortOrder);
+			.orderBy(templates.sortOrder);
+	}
 }

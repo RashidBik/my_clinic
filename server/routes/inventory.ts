@@ -92,8 +92,17 @@ const inventoryRoutes: FastifyPluginAsync = async (app) => {
 	});
 
 	// POST /api/inventory/items
-	app.post('/inventory/items', async (request, reply) => {
-		const body = CreateItemSchema.safeParse(request.body);
+	app.post('/inventory/items', {
+		preHandler: async (request, reply) => {
+			if ((request.user as { baseRole: string }).baseRole !== 'manager') {
+				return reply.status(403).send({
+					error: 'FORBIDDEN',
+					message: 'فقط مدیر می‌تواند آیتم اضافه کند'
+				});
+			}
+		}
+		}, async (request, reply) => {
+	const body = CreateItemSchema.safeParse(request.body);
 		if (!body.success) {
 			return reply.status(400).send({
 				error: 'ValidationError',
@@ -118,11 +127,19 @@ const inventoryRoutes: FastifyPluginAsync = async (app) => {
 				});
 			}
 			throw error;
-		}
-	});
+		}	});
 
-	// PATCH /api/inventory/items/:id
-	app.patch<{ Params: { id: string } }>('/inventory/items/:id', async (request, reply) => {
+	// PATCH /api/inventory/items/:id — فقط Manager
+	app.patch<{ Params: { id: string } }>('/inventory/items/:id', {
+		preHandler: async (request, reply) => {
+			if ((request.user as { baseRole: string }).baseRole !== 'manager') {
+				return reply.status(403).send({
+					error: 'FORBIDDEN',
+					message: 'فقط مدیر می‌تواند آیتم را ویرایش کند'
+				});
+			}
+		}
+	}, async (request, reply) => {
 		const body = UpdateItemSchema.safeParse(request.body);
 		if (!body.success) {
 			return reply.status(400).send({ error: 'ValidationError' });
@@ -147,8 +164,19 @@ const inventoryRoutes: FastifyPluginAsync = async (app) => {
 		}
 	});
 
+	
+
 	// POST /api/inventory/adjust
-	app.post('/inventory/adjust', async (request, reply) => {
+	app.post('/inventory/adjust', {
+		preHandler: async (request, reply) => {
+			if ((request.user as { baseRole: string }).baseRole !== 'manager') {
+				return reply.status(403).send({
+					error: 'FORBIDDEN',
+					message: 'فقط مدیر می‌تواند موجودی را تنظیم کند'
+				});
+			}
+		}
+	}, async (request, reply) => {
 		const body = AdjustStockSchema.safeParse(request.body);
 		if (!body.success) {
 			return reply.status(400).send({ error: 'ValidationError' });

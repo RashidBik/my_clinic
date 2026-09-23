@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { inventory } from '$lib/features/inventory/store.svelte';
 
-	let { onClose }: { onClose: () => void } = $props();
+	let { onClose, onSuccess }: { onClose: () => void; onSuccess: () => void } = $props();
 
 	let name = $state('');
 	let unit = $state('عدد');
@@ -10,6 +10,8 @@
 	let purchasePrice = $state<number | undefined>(undefined);
 	let salePrice = $state<number | undefined>(undefined);
 	let supplier = $state('');
+	let batchNumber = $state('');
+	let expiryDate = $state(''); // ← ISO date string (YYYY-MM-DD)
 	let error = $state('');
 
 	const isSaving = $derived(inventory.isSaving);
@@ -29,9 +31,14 @@
 				minimumStock,
 				purchasePrice,
 				salePrice,
-				supplier: supplier || undefined
+				supplier: supplier || undefined,
+				batchNumber: batchNumber || undefined,
+				// ⭐ تبدیل به ISO datetime
+				expiryDate: expiryDate
+					? new Date(expiryDate + 'T00:00:00.000Z').toISOString()
+					: undefined
 			});
-			onClose();
+			onSuccess();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'خطا در ثبت';
 		}
@@ -42,14 +49,15 @@
 	class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center"
 	onclick={onClose}
 	onkeydown={(event) => event.key === 'Escape' && onClose()}
+	tabindex="-1"
 	role="presentation"
 >
 	<div
 		class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl"
 		onclick={(e) => e.stopPropagation()}
 		onkeydown={(e) => e.stopPropagation()}
-		role="dialog"
 		tabindex="-1"
+		role="dialog"
 	>
 		<h2 class="text-lg font-bold text-gray-900">افزودن آیتم جدید</h2>
 
@@ -58,8 +66,11 @@
 		{/if}
 
 		<div class="mt-4 space-y-3">
+			<!-- Name -->
 			<div>
-				<label for="name" class="mb-1 block text-sm font-medium text-gray-700">نام</label>
+				<label for="name" class="mb-1 block text-sm font-medium text-gray-700">
+					نام <span class="text-red-500">*</span>
+				</label>
 				<input
 					id="name"
 					type="text"
@@ -68,6 +79,7 @@
 				/>
 			</div>
 
+			<!-- Unit + Quantity -->
 			<div class="grid grid-cols-2 gap-3">
 				<div>
 					<label for="unit" class="mb-1 block text-sm font-medium text-gray-700">واحد</label>
@@ -75,6 +87,7 @@
 						id="unit"
 						type="text"
 						bind:value={unit}
+						placeholder="عدد، قرص، بسته..."
 						class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
 					/>
 				</div>
@@ -84,11 +97,13 @@
 						id="qty"
 						type="number"
 						bind:value={quantity}
+						min="0"
 						class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
 					/>
 				</div>
 			</div>
 
+			<!-- Minimum Stock -->
 			<div>
 				<label for="min" class="mb-1 block text-sm font-medium text-gray-700">
 					حداقل موجودی (هشدار)
@@ -97,10 +112,12 @@
 					id="min"
 					type="number"
 					bind:value={minimumStock}
+					min="0"
 					class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
 				/>
 			</div>
 
+			<!-- Prices -->
 			<div class="grid grid-cols-2 gap-3">
 				<div>
 					<label for="buy" class="mb-1 block text-sm font-medium text-gray-700">قیمت خرید</label>
@@ -108,6 +125,7 @@
 						id="buy"
 						type="number"
 						bind:value={purchasePrice}
+						min="0"
 						class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
 					/>
 				</div>
@@ -117,17 +135,52 @@
 						id="sell"
 						type="number"
 						bind:value={salePrice}
+						min="0"
 						class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
 					/>
 				</div>
 			</div>
 
+			<!-- ⭐ Expiry Date -->
 			<div>
-				<label for="supplier" class="mb-1 block text-sm font-medium text-gray-700">تأمین‌کننده</label>
+				<label for="expiry" class="mb-1 block text-sm font-medium text-gray-700">
+					تاریخ انقضا
+				</label>
+				<input
+					id="expiry"
+					type="date"
+					bind:value={expiryDate}
+					class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+				/>
+				<p class="mt-1 text-xs text-gray-500">
+					اختیاری — اگر بگذاری، سیستم ۳۰ روز قبل هشدار می‌دهد
+				</p>
+			</div>
+
+			<!-- Batch Number -->
+			<div>
+				<label for="batch" class="mb-1 block text-sm font-medium text-gray-700">
+					شماره بچ
+				</label>
+				<input
+					id="batch"
+					type="text"
+					bind:value={batchNumber}
+					placeholder="اختیاری"
+					class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+				/>
+			</div>
+
+			<!-- Supplier -->
+			<div>
+				<label for="supplier" class="mb-1 block text-sm font-medium text-gray-700">
+					تأمین‌کننده
+				</label>
 				<input
 					id="supplier"
 					type="text"
 					bind:value={supplier}
+					placeholder="اختیاری"
 					class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
 				/>
 			</div>

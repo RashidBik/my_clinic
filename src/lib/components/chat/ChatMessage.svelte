@@ -16,24 +16,15 @@
 	const isOperational = $derived(message.messageType === 'operational');
 	const isSystem = $derived(message.messageType === 'system');
 	
-	// ⭐ آیا کاربر می‌تواند این Record را ادامه دهد؟
+		// ⭐ canContinue اصلاح‌شده
 	const canContinue = $derived.by(() => {
 		if (!isOperational || !message.recordId) return false;
+		if (message.senderId === auth.user?.id) return false;
 		if (message.recordStatus === 'completed') return false;
 		if (message.recordStatus === 'cancelled') return false;
-		
-		// Manager همیشه می‌تواند
+		if (!message.nextRoleSlug) return false;
 		if (auth.isManager) return true;
-		
-		// فقط اگر Next Role = Role فعلی
-		if (message.nextRoleSlug && message.nextRoleSlug === auth.role?.slug) {
-			return true;
-		}
-		
-		// اگر Next Role ندارد، اجازه بده
-		if (!message.nextRoleSlug) return true;
-		
-		return false;
+		return message.nextRoleSlug === auth.role?.slug;
 	});
 	
 	// ⭐ آیا این پیام مربوط به Role من است؟

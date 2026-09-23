@@ -99,6 +99,14 @@ export const RECEPTION_TEMPLATES: SeedTemplate[] = [
 				type: 'assign_to_role',
 				sortOrder: 5,
 				config: {
+					// ⭐ جدید: بر اساس department تصمیم بگیر
+					roleByField: 'department',
+					roleMap: {
+						examination: 'doctor',
+						dental: 'dentist',
+						maternity: 'midwife',
+						laboratory: 'laboratory'
+					},
 					roleSlug: 'doctor'
 				}
 			},

@@ -290,18 +290,17 @@ interface ExecuteActionsInput {
 function executeActionsSync(input: ExecuteActionsInput): ExecuteTemplateResult {
 	const { template, data, renderedContent, organizationId, userId, clientOperationId } = input;
 
-	// ترتیب: Actions با sortOrder
 	const actions = [...template.actions].sort((a, b) => a.sortOrder - b.sortOrder);
 
 	let recordId: string | null = null;
 	let recordStepId: string | null = null;
 	let paymentId: string | null = null;
 	let referenceCode = '';
+	// ⭐ این‌ها را در Loop Update کن
 	let nextRoleId: string | null = null;
 	let recordStatus: string | null = null;
 	let referenceCodeForMessage: string | null = null;
 
-	
 	const context: Record<string, unknown> = {};
 
 	// اجرای Actions
@@ -322,21 +321,25 @@ function executeActionsSync(input: ExecuteActionsInput): ExecuteTemplateResult {
 		if (result.recordStepId) recordStepId = result.recordStepId;
 		if (result.paymentId) paymentId = result.paymentId;
 		if (result.referenceCode) referenceCode = result.referenceCode;
+		// ⭐ این دو خط را اضافه کن
+		if (result.newAssignedRoleId) nextRoleId = result.newAssignedRoleId;
+		if (result.newStatus) recordStatus = result.newStatus;
 
 		Object.assign(context, result.context);
 	}
 
-		// if (recordId) {
-		// db.update(records)
-		// 	.set({
-		// 		metadata: data, // ← کل داده را ذخیره کن
-		// 		updatedAt: new Date()
-		// 	})
-		// 	.where(eq(records.id, recordId))
-		// 	.run();
-		// }
 
-			if (recordId) {
+	if (recordId) {
+		db.update(records)
+			.set({
+				metadata: data,
+				updatedAt: new Date()
+			})
+			.where(eq(records.id, recordId))
+			.run();
+	}
+	
+	if (recordId) {
 		const [freshRecord] = db
 			.select()
 			.from(records)
@@ -347,7 +350,6 @@ function executeActionsSync(input: ExecuteActionsInput): ExecuteTemplateResult {
 		if (freshRecord) {
 			nextRoleId = freshRecord.assignedToRoleId;
 			recordStatus = freshRecord.status;
-			referenceCodeForMessage = freshRecord.referenceCode;
 		}
 	}
 
@@ -418,6 +420,10 @@ interface ActionResult {
 	paymentId?: string;
 	referenceCode?: string;
 	context?: Record<string, unknown>;
+	// ⭐ جدید
+	newAssignedRoleId?: string;
+	newStatus?: string;
+	nextStepId?: string;
 }
 
 function executeAction(action: TemplateAction, ctx: ActionContext): ActionResult {
@@ -687,36 +693,58 @@ function executeAction(action: TemplateAction, ctx: ActionContext): ActionResult
 		// ─────────────────────────────────────────
 		// Assign to Role
 		// ─────────────────────────────────────────
-		case 'assign_to_role': {
-			if (!ctx.recordId) return {};
+		// ─────────────────────────────────────────
+// Assign to Role (⭐ با roleByField Support)
+// ─────────────────────────────────────────
+case 'assign_to_role': {
+	if (!ctx.recordId) return {};
 
-			const roleSlug = String(config.roleSlug || '');
+	// ⭐ ۱. تعیین roleSlug: از roleByField یا fallback
+	let roleSlug = String(config.roleSlug || '');
 
-			const [role] = db
-				.select()
-				.from(roles)
-				.where(
-					and(
-						eq(roles.organizationId, ctx.organizationId),
-						eq(roles.slug, roleSlug)
-					)
-				)
-				.limit(1)
-				.all();
+	const roleByField = config.roleByField ? String(config.roleByField) : null;
+	const roleMap = config.roleMap as Record<string, string> | undefined;
 
-			if (!role) return {};
-
-			db.update(records)
-				.set({
-					assignedToRoleId: role.id,
-					visibleToRoles: [role.id],
-					updatedAt: new Date()
-				})
-				.where(eq(records.id, ctx.recordId))
-				.run();
-
-			return {};
+	if (roleByField && roleMap) {
+		const fieldValue = String(ctx.data[roleByField] || '');
+		if (fieldValue && roleMap[fieldValue]) {
+			roleSlug = roleMap[fieldValue];
 		}
+	}
+
+	// ⭐ ۲. پیدا کردن Role
+	const [role] = db
+		.select()
+		.from(roles)
+		.where(
+			and(
+				eq(roles.organizationId, ctx.organizationId),
+				eq(roles.slug, roleSlug)
+			)
+		)
+		.limit(1)
+		.all();
+
+	if (!role) {
+		console.warn(`⚠️ Role not found: ${roleSlug}`);
+		return {};
+	}
+
+	// ⭐ ۳. Update Record
+	db.update(records)
+		.set({
+			assignedToRoleId: role.id,
+			visibleToRoles: [role.id],
+			updatedAt: new Date()
+		})
+		.where(eq(records.id, ctx.recordId))
+		.run();
+
+	return {
+		// ⭐ این‌ها را برگردان تا executeActionsSync ببیند
+		newAssignedRoleId: role.id
+	} as ActionResult;
+}
 
 		// ─────────────────────────────────────────
 		// Update Record Status
@@ -1313,7 +1341,18 @@ function executeContinueAction(
 		// Assign to Role
 		// ─────────────────────────────────────────
 		case 'assign_to_role': {
-			const roleSlug = String(config.roleSlug || '');
+			let roleSlug = String(config.roleSlug || '');
+
+				// اگر roleByField دارد، از Data بخوان
+			const roleByField = config.roleByField ? String(config.roleByField) : null;
+			const roleMap = config.roleMap as Record<string, string> | undefined;
+
+			if (roleByField && roleMap) {
+				const fieldValue = String(ctx.data[roleByField] || '');
+				if (fieldValue && roleMap[fieldValue]) {
+					roleSlug = roleMap[fieldValue];
+				}
+			}
 
 			const [role] = db
 				.select()
@@ -1327,7 +1366,10 @@ function executeContinueAction(
 				.limit(1)
 				.all();
 
-			if (!role) return {};
+			if (!role) {
+				console.warn(`⚠️ Role not found: ${roleSlug}`);
+				return {};
+			}
 
 			let nextStepId: string | undefined;
 			if (ctx.record.workflowId) {
